@@ -10,7 +10,7 @@ app.use(cors())
 // 1M7974pESM5sxDRY
 
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb://${process.env.DB_USER}:${process.env.DB_PASS}@ac-euh9qdo-shard-00-00.hbyxuz9.mongodb.net:27017,ac-euh9qdo-shard-00-01.hbyxuz9.mongodb.net:27017,ac-euh9qdo-shard-00-02.hbyxuz9.mongodb.net:27017/?ssl=true&replicaSet=atlas-ny4qda-shard-0&authSource=admin&retryWrites=true&w=majority`;
 MongoClient.connect(uri, function (err, client) {
     const collection = client.db("test").collection("devices");
@@ -33,6 +33,63 @@ async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
+
+
+        const servicesCollection = client.db('carDoctorDB').collection('services')
+        const bookingCollection = client.db('carDoctorDB').collection('booking')
+        // 1. do post method manually
+
+
+        // 2. find multiple documents
+        // const servicesCollection=client.db('carDoctorDB').collection('services') start
+
+        app.get('/services', async (req, res) => {
+            const result = await servicesCollection.find().toArray()
+            res.send(result)
+        })
+
+        // eita diye service er details page e gese
+        app.get('/services/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const result = await servicesCollection.findOne(query)
+            res.send(result)
+        })
+
+
+        // eita diye checkout page e jabe kintu info nibe services theke
+        app.get('/service/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const options = {
+                projection: { title: 1, price: 1, service_id: 1, img: 1 },
+            };
+            // console.log(options)
+            const result = await servicesCollection.findOne(query, options)
+            res.send(result)
+        })
+
+        // const servicesCollection=client.db('carDoctorDB').collection('services') end
+
+
+        // const bookingCollection=client.db('carDoctorDB').collection('booking') start
+        app.post('/bookings', async (req, res) => {
+            const booking = req.body;
+            // console.log(booking)
+            const result=await bookingCollection.insertOne(booking)
+            res.send(result)
+        })
+
+        // sum data
+        app.get('/bookings', async(req, res)=>{
+            // console.log(req.query.email)
+            let query={};
+            if(req.query?.email){
+                query= {email: req.query.email}
+            }
+            const result=await bookingCollection.find(query).toArray()
+            res.send(result)
+        })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
