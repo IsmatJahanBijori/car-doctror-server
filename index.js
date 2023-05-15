@@ -5,6 +5,7 @@ const cors = require('cors');
 require('dotenv').config()
 const port = process.env.PORT || 5000
 app.use(cors())
+const jwt = require('jsonwebtoken');
 
 // ismat_jahan_carDoctor
 // 1M7974pESM5sxDRY
@@ -29,16 +30,48 @@ const client = new MongoClient(uri, {
     }
 });
 
+
+// jwt verify function
+const verifyJWT = (req, res, next) => {
+    const authorization = req.headers.authorization
+    console.log("37",authorization)
+    // j data astiche seta authorized client kina seta check korche
+    if (!authorization) {
+        return res.status(401).send({ error: true, message: 'Unauthorized Access 39' })
+    }
+    const token = authorization.split(' ')[1]
+    console.log("43", token)
+    jwt.verify(token, process.env.ACCESS_TOKEN, (error, decoded) => {
+        if (error) {
+            return res.status(403).send({ error: true, message: 'Unauthorized Access 45' })
+        }
+        else {
+            // verified hole secret code ta decoded korche
+            res.decoded = decoded
+            console.log('50', res.decoded.email)
+            next()
+        }
+    });
+}
+
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
-
         const servicesCollection = client.db('carDoctorDB').collection('services')
         const bookingCollection = client.db('carDoctorDB').collection('booking')
         // 1. do post method manually
 
+
+        //jwt 
+        app.post('/jwt', async (req, res) => {
+            const user = req.body;
+            console.log(user)
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '7d' });
+            res.send({ token })
+        })
 
         // 2. find multiple documents
         // const servicesCollection=client.db('carDoctorDB').collection('services') start
@@ -75,14 +108,21 @@ async function run() {
         // const bookingCollection=client.db('carDoctorDB').collection('booking') start
         app.post('/bookings', async (req, res) => {
             const booking = req.body;
-            console.log(booking)
+            // console.log(booking)
             const result = await bookingCollection.insertOne(booking)
             res.send(result)
         })
 
         // sum data
-        app.get('/bookings', async (req, res) => {
-            // console.log(req.query.email)
+        app.get('/bookings', verifyJWT, async (req, res) => {
+            // console.log(req.headers.authorization.split(' ')[1])
+            // console.log("118", req?.decoded?.email)
+            const decoded = res.decoded;
+            console.log(decoded)
+
+            if (decoded.email !== req.query.email) {
+                res.send({ error: 1, message: 'no' })
+            }
             let query = {};
             if (req.query?.email) {
                 query = { email: req.query.email }
